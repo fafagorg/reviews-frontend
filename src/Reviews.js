@@ -3,6 +3,7 @@ import Review from './Review.js';
 import Alert from './Alert.js';
 import NewReview from './NewReview.js';
 import EditReview from './EditReview.js';
+import ReviewsApi from './ReviewsApi.js';
 
 class Reviews extends React.Component {
     constructor(props) {
@@ -10,7 +11,7 @@ class Reviews extends React.Component {
 
         this.state = {
             errorInfo: null,
-            reviews: this.props.reviews,
+            reviews: [],
             isEditing: {}
         };
 
@@ -18,6 +19,22 @@ class Reviews extends React.Component {
         this.handleDelete = this.handleDelete.bind(this);
         this.handleCloseError = this.handleCloseError.bind(this);
         this.addReview = this.addReview.bind(this);
+    }
+
+    componentDidMount() {
+        ReviewsApi.getAllReviews()
+        .then(
+            (result) => {
+                this.setState({
+                    reviews: result
+                })
+            },
+            (error) => {
+                this.setState({
+                    errorInfo: "There was a problem with the connection to the server"
+                })
+            }
+        );
     }
 
     handleEdit(review) {
