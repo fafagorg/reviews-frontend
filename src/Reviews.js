@@ -19,22 +19,24 @@ class Reviews extends React.Component {
         this.handleDelete = this.handleDelete.bind(this);
         this.handleCloseError = this.handleCloseError.bind(this);
         this.addReview = this.addReview.bind(this);
+        this.loadReviews = this.loadReviews.bind(this);
     }
 
-    componentDidMount() {
-        ReviewsApi.getAllReviews()
-        .then(
-            (result) => {
-                this.setState({
-                    reviews: result
-                })
-            },
-            (error) => {
-                this.setState({
-                    errorInfo: "There was a problem with the connection to the server"
-                })
-            }
-        );
+    async loadReviews() {
+        try {
+            let result = await ReviewsApi.getAllReviews();
+            this.setState({
+                reviews: result
+            });
+        } catch (error) {
+            this.setState({
+                errorInfo: "There was a problem with the connection to the server"
+            });
+        }
+    }
+
+    async componentDidMount() {
+        await this.loadReviews();
     }
 
     handleEdit(review) {
@@ -43,10 +45,16 @@ class Reviews extends React.Component {
         }));
     }
 
-    handleDelete(review) {
-        this.setState(prevState => ({
-            reviews: prevState.reviews.filter(r => r.id !== review.id)
-        }));
+    async handleDelete(review) {
+        try {
+            await ReviewsApi.deleteReview(review.id);
+        } catch (error) {
+            this.setState({
+                errorInfo: "There was an error deleting review"
+            });
+        }
+
+        await this.loadReviews();
     }
 
     handleCancel(id, review) {
@@ -66,25 +74,36 @@ class Reviews extends React.Component {
         }));
     }
 
-    handleSave(id, review) {
-        this.setState(prevState => {
-            const isEditing = Object.assign({}, prevState.isEditing);
-            delete isEditing[id];
+    async handleSave(id, review) {
 
-            if (id === review.id) {
-                const reviews = prevState.reviews;
-                const pos = reviews.findIndex(c => c.id === id);
+        if (review.title === '') {
+            this.setState({
+                errorInfo: "Title cannot be empty"
+            });
+        }
 
+        if (Number(review.score) < 1 || Number(review.score) > 5) {
+            this.setState({
+                errorInfo: "Score must be a number between 1 and 5"
+            });
+        }
+
+        try {
+            await ReviewsApi.putReview(id, review);
+            this.setState(prevState => {
+                const isEditing = Object.assign({}, prevState.isEditing);
+                delete isEditing[id];
                 return {
-                    reviews: [...reviews.slice(0, pos), Object.assign({}, review), ...reviews.slice(pos + 1)],
                     isEditing: isEditing
                 }
-            }
+            });
+        } catch (error) {
+            this.setState({
+                errorInfo: "There was an error updating review"
+            });
+        }
 
-            return {
-                errorInfo: "Cannot edit id"
-            }
-        });
+        await this.loadReviews();
     }
 
     handleCloseError() {
@@ -93,34 +112,28 @@ class Reviews extends React.Component {
         });
     }
 
-    addReview(review) {
-        this.setState(prevState => {
-            const reviews = prevState.reviews;
+    async addReview(review) {
+        if (review.title === '') {
+            this.setState({
+                errorInfo: "Title cannot be empty"
+            });
+        }
 
-            if (review.id === '') {
-                return ({
-                    errorInfo: "Id cannot be empty"
-                });
-            }
+        if (Number(review.score) < 1 || Number(review.score) > 5) {
+            this.setState({
+                errorInfo: "Score must be a number between 1 and 5"
+            });
+        }
 
-            if (reviews.find(r => r.id === review.id)) {
-                return ({
-                    errorInfo: "Id already exists"
-                });
-            }
+        try {
+            await ReviewsApi.postReview(review)
+        } catch (error) {
+            this.setState({
+                errorInfo: "There was an error adding review"
+            });
+        }
 
-            if (review.title === '') {
-                return ({
-                    errorInfo: "Title cannot be empty"
-                });
-            }
-
-
-
-            return ({
-                reviews: [...prevState.reviews, review]
-            })
-        });
+        await this.loadReviews();
     }
 
     render() {
@@ -131,13 +144,14 @@ class Reviews extends React.Component {
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Id</th>
                             <th>Title</th>
                             <th>Score</th>
                             <th>Description</th>
                             <th>Created at</th>
                             <th>Reviewer</th>
                             <th>Reviewed product</th>
+                            <th>Sentiment</th>
+                            <th>&nbsp;</th>
                             <th>&nbsp;</th>
                         </tr>
                     </thead>
